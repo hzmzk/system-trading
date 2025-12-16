@@ -3,11 +3,13 @@ requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "test"
-version = "0.0.1"
+name = "system-trading"
+version = "0.1"
 
 dependencies = [
   "yfinance",
-  "pandas"
+  "pandas",
+  "matplotlib"
 ]
 
+readme = "README.md"
