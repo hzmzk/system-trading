@@ -1,7 +1,7 @@
 import pandas as pd
 import yfinance as yf
 
-from system_trading.util import price_normalization
+from util import price_normalization
 
 def update_agg_norm_price_dataset(sector_list, horizon="15mo"):
     if(sector_list == "all"):

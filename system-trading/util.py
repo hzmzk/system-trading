@@ -4,7 +4,7 @@ import yfinance as yf
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from system_trading.trading_rule import multi_ewmac
+from trading_rule import multi_ewmac
 
 
 def datetime_csv(file_name):
