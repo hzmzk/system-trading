@@ -1,7 +1,7 @@
 import pandas as pd
 import yfinance as yf
 
-import util
+from system_trading.util import price_normalization
 
 def update_agg_norm_price_dataset(sector_list, horizon="15mo"):
     if(sector_list == "all"):
@@ -22,7 +22,7 @@ def update_agg_norm_price_dataset(sector_list, horizon="15mo"):
                 multi_norm_price = pd.DataFrame()
                 for stock in stock_list:    
                     price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
-                    normalized_price = util.price_normalization(price)
+                    normalized_price = price_normalization(price)
                     multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
 
                 agg_norm_price = (multi_norm_price - multi_norm_price.shift()).mean(axis="columns").cumsum()    

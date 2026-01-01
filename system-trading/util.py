@@ -4,7 +4,7 @@ import yfinance as yf
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-import trading_rule
+from system_trading.trading_rule import multi_ewmac
 
 
 def datetime_csv(file_name):
@@ -53,7 +53,7 @@ def aggregate_momentum(group, group_key, horizon="15mo"):
         multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
 
     agg_norm_price = (multi_norm_price - multi_norm_price.shift()).mean(axis="columns").cumsum()    
-    agg_momentum_forecast = trading_rule.multi_ewmac(agg_norm_price, parameter="normal")
+    agg_momentum_forecast = multi_ewmac(agg_norm_price, parameter="normal")
 
     return agg_momentum_forecast
         
@@ -66,7 +66,7 @@ def sector_trend(momentum_value, show_graph = False):
         sector_print_trigger = True
         multi_industry_norm_price = datetime_csv("dataset/" + sector + ".csv")
         for industry in multi_industry_norm_price.columns:
-            industry_aggregate_momentum = trading_rule.multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
+            industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
             if(industry_aggregate_momentum > momentum_value):
                 passed_industry_list.append(industry)
                 if(sector_print_trigger):
@@ -92,7 +92,7 @@ def industry_aggregate_momentum(industry_key):
         multi_industry_norm_price = datetime_csv("dataset/" + sector + ".csv")
         for industry in multi_industry_norm_price.columns:
             if(industry == industry_key):
-                industry_aggregate_momentum = trading_rule.multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
+                industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
                 return industry_aggregate_momentum
 
 

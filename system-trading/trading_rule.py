@@ -1,5 +1,10 @@
 import pandas as pd
-import util
+
+def volatility(price):
+    daily_return = price / price.shift() - 1
+    ewma_mean = daily_return.ewm(span=36, adjust=False).mean().iloc[-1].item()
+    ewma_vol = (((daily_return - ewma_mean)**2).ewm(span=36, adjust=False).mean() ** 0.5).iloc[-1].item()
+    return ewma_vol
 
 def ewmac(price, fast_span, weight="exponential"):
     match fast_span:
@@ -19,7 +24,7 @@ def ewmac(price, fast_span, weight="exponential"):
     raw_difference = price.ewm(span=fast_span, adjust=False).mean().iloc[-1].item() - price.ewm(span=slow_span, adjust=False).mean().iloc[-1].item()
 
     if(weight == "exponential"):
-        price_volatility = price.iloc[-1].item() * util.volatility(price)
+        price_volatility = price.iloc[-1].item() * volatility(price)
     elif(weight == "normal"):
         price_volatility = price.rolling(25).std().iloc[-1]
 
@@ -42,7 +47,7 @@ def acceleration(price, fast_span):
     slow_span = fast_span * 4
 
     raw_difference = price.ewm(span=fast_span, adjust=False).mean() - price.ewm(span=slow_span, adjust=False).mean()
-    price_volatility = price.iloc[-1].item() * util.volatility(price)
+    price_volatility = price.iloc[-1].item() * volatility(price)
 
     ewmac_forecast = raw_difference / price_volatility * ewmac_forecast_scalar
 
