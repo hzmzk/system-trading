@@ -1,10 +1,7 @@
 import pandas as pd
 
-def volatility(price):
-    daily_return = price / price.shift() - 1
-    ewma_mean = daily_return.ewm(span=36, adjust=False).mean().iloc[-1].item()
-    ewma_vol = (((daily_return - ewma_mean)**2).ewm(span=36, adjust=False).mean() ** 0.5).iloc[-1].item()
-    return ewma_vol
+from util import volatility
+
 
 def ewmac(price, fast_span, weight="exponential"):
     match fast_span:
