@@ -1,3 +1,5 @@
+import pandas as df
+
 def volatility(price):
     daily_return = price / price.shift() - 1
     ewma_mean = daily_return.ewm(span=36, adjust=False).mean().iloc[-1].item()
