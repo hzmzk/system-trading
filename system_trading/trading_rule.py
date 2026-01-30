@@ -2,8 +2,7 @@ import pandas as pd
 
 from util import volatility
 
-
-def ewmac(price, fast_span, weight="exponential"):
+def ewmac(price, fast_span, weight="exponential", backtest_mode=False):
     match fast_span:
         case 4:
             forecast_scalar = 8.53
@@ -18,7 +17,11 @@ def ewmac(price, fast_span, weight="exponential"):
 
     slow_span = fast_span * 4
 
-    raw_difference = price.ewm(span=fast_span, adjust=False).mean().iloc[-1].item() - price.ewm(span=slow_span, adjust=False).mean().iloc[-1].item()
+    if(not backtest_mode):
+        raw_difference = price.ewm(span=fast_span, adjust=False).mean().iloc[-1].item() - price.ewm(span=slow_span, adjust=False).mean().iloc[-1].item()
+    elif(backtest_mode):
+        raw_difference = price.ewm(span=fast_span, adjust=False).mean() - price.ewm(span=slow_span, adjust=False).mean()
+
 
     if(weight == "exponential"):
         price_volatility = price.iloc[-1].item() * volatility(price)
@@ -26,10 +29,18 @@ def ewmac(price, fast_span, weight="exponential"):
         price_volatility = price.rolling(25).std().iloc[-1]
 
     forecast = raw_difference / price_volatility * forecast_scalar
-    capped_forecast = min(max(forecast,-20), 20) 
-    return capped_forecast
 
-def acceleration(price, fast_span):
+    if(not backtest_mode):
+        forecast = min(max(forecast,-20), 20) 
+    elif(backtest_mode):
+        column_name = price.columns.item()
+        forecast[forecast[column_name] > 20] = 20
+        forecast[forecast[column_name] < -20] = -20
+        forecast = forecast[slow_span:]
+
+    return forecast
+
+def acceleration(price, fast_span, backtest_mode=False):
     match fast_span:
         case 8:
             ewmac_forecast_scalar = 5.95
@@ -48,12 +59,22 @@ def acceleration(price, fast_span):
 
     ewmac_forecast = raw_difference / price_volatility * ewmac_forecast_scalar
 
-    forecast = ( ewmac_forecast - ewmac_forecast.shift(fast_span) ).iloc[-1].item() * accel_forecast_scalar
-    capped_forecast = min(max(forecast,-20), 20) 
-    
-    return capped_forecast
+    if(not backtest_mode):
+        forecast = ( ewmac_forecast - ewmac_forecast.shift(fast_span) ).iloc[-1].item() * accel_forecast_scalar
+    elif(backtest_mode):
+        forecast = ( ewmac_forecast - ewmac_forecast.shift(fast_span) ) * accel_forecast_scalar
 
-def breakout(price, horizon):
+    if(not backtest_mode):
+        forecast = min(max(forecast,-20), 20) 
+    elif(backtest_mode):
+        column_name = price.columns.item()
+        forecast[forecast[column_name] > 20] = 20
+        forecast[forecast[column_name] < -20] = -20
+        forecast = forecast[slow_span:]
+        
+    return forecast
+
+def breakout(price, horizon, backtest_mode=False):
     match horizon:
         case 20:
             forecast_scalar = 0.791
@@ -71,10 +92,36 @@ def breakout(price, horizon):
 
     mean = ( upper_range + lower_range ) / 2
     
-    forecast = ( 40 * (price - mean) / (upper_range - lower_range) ).ewm(span=(horizon/4), adjust=False).mean().iloc[-1].item() * forecast_scalar
-    capped_forecast = min(max(forecast,-20), 20) 
+    if(not backtest_mode):
+        forecast = ( 40 * (price - mean) / (upper_range - lower_range) ).ewm(span=(horizon/4), adjust=False).mean().iloc[-1].item() * forecast_scalar
+    elif(backtest_mode):
+        forecast = ( 40 * (price - mean) / (upper_range - lower_range) ).ewm(span=(horizon/4), adjust=False).mean() * forecast_scalar
     
-    return capped_forecast
+    if(not backtest_mode):
+        forecast = min(max(forecast,-20), 20) 
+    elif(backtest_mode):
+        column_name = price.columns.item()
+        forecast[forecast[column_name] > 20] = 20
+        forecast[forecast[column_name] < -20] = -20
+        forecast = forecast[horizon:]
+    
+    return forecast
+
+def channel_breakout(price, horizon):
+    forecast = price.copy()
+    ticker = price.columns[0]
+    upper_bound = price.rolling(horizon).max()[ticker]
+    lower_bound = price.rolling(horizon).min()[ticker]
+
+    forecast[(price[ticker] <  upper_bound) & (price[ticker] > lower_bound)] = float('NaN')
+    forecast[price[ticker] ==  upper_bound] = 1
+    forecast[price[ticker] ==  lower_bound] = -1
+    forecast[:horizon-1] = 0
+    forecast = forecast.ffill()
+    forecast = forecast.shift()
+    
+    forecast = forecast[horizon:]
+    return forecast
 
 def multi_ewmac(price, parameter="exponential"):
     ewmac4  = ewmac(price, 4, weight=parameter)
@@ -101,9 +148,9 @@ def multi_breakout(price):
 
 def forecast(price):
     forecast = multi_ewmac(price) * 0.3 + multi_accel(price) * 0.35 + multi_breakout(price) * 0.35
-    capped_forecast = min(max(forecast,-20), 20) 
+    forecast = min(max(forecast,-20), 20) 
     
-    return capped_forecast
+    return forecast
  
 
 

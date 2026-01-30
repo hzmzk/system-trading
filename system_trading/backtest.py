@@ -43,6 +43,13 @@ def rule_return(rule_outcome, detrended_daily_return):
     column_name = rule_outcome.columns.item()
     return (rule_outcome * detrended_daily_return.loc[rule_outcome.index])[column_name]
 
+def cap_forecast(forecast):
+    column_name = forecast.columns.item()
+    forecast[(forecast[column_name] < 5) & (forecast[column_name] > -5)] = 0
+    forecast[forecast[column_name] > 5] = 1
+    forecast[forecast[column_name] < -5] = -1
+    return forecast
+
 def rule_stats_summary(price, rule_outcome):
     detrended_daily_return = detrend_return(price)
     sample_return = rule_return(rule_outcome,detrended_daily_return)
