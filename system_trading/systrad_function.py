@@ -25,32 +25,13 @@ def price_normalization(price, truncate=100):
     return normalized_price
 
 
-def aggregate_momentum(group, group_key, horizon="15mo"):
-    if(group == "sector"):
-        stock_list = yf.Sector(group_key).top_companies.index
-    elif(group == "industry"):
-        stock_list = yf.Industry(group_key).top_companies.index
-
-    multi_norm_price = pd.DataFrame()
-
-    for stock in stock_list:    
-        price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
-        normalized_price = price_normalization(price)
-        multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
-
-    agg_norm_price = (multi_norm_price - multi_norm_price.shift()).mean(axis="columns").cumsum()    
-    agg_momentum_forecast = multi_ewmac(agg_norm_price, parameter="normal")
-
-    return agg_momentum_forecast
-        
-
 def sector_trend(momentum_value, show_graph = False):
     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "healthcare", "industrials", "real-estate", "technology", "utilities"]
     passed_sector_list = []
     passed_industry_list = []
     for sector in sector_list:
         sector_print_trigger = True
-        multi_industry_norm_price = datetime_csv("dataset/" + sector + ".csv")
+        multi_industry_norm_price = datetime_csv("sector_normalization_price/" + sector + ".csv")
         for industry in multi_industry_norm_price.columns:
             industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
             if(industry_aggregate_momentum > momentum_value):
@@ -72,16 +53,23 @@ def sector_trend(momentum_value, show_graph = False):
     print(passed_industry_list)
 
 
-def industry_aggregate_momentum(industry_key):
-    sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "healthcare", "industrials", "real-estate", "technology", "utilities"]
-    for sector in sector_list:
-        multi_industry_norm_price = datetime_csv("dataset/" + sector + ".csv")
-        for industry in multi_industry_norm_price.columns:
-            if(industry == industry_key):
-                industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
-                return industry_aggregate_momentum
+# Check trend forecast directly from yahoo finance
+def aggregate_momentum(industry_key, horizon="2y"):
+    stock_list = yf.Industry(industry_key).top_companies.index
+    multi_norm_price = pd.DataFrame()
+
+    for stock in stock_list:    
+        price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
+        normalized_price = price_normalization(price)
+        multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
+
+    agg_norm_price = (multi_norm_price - multi_norm_price.shift()).mean(axis="columns").cumsum()    
+    agg_momentum_forecast = multi_ewmac(agg_norm_price, parameter="normal")
+
+    return agg_momentum_forecast
 
 
+# Plot aggregate normalization using data extracted directly from yahoo finance
 def plot_agg_norm(stock_list, display_all=True):
     fig = plt.figure()
     ax = plt.axes()
@@ -90,7 +78,7 @@ def plot_agg_norm(stock_list, display_all=True):
     multi_norm_price = pd.DataFrame()
 
     for stock in stock_list:    
-        price = yf.download([stock], period="1y", auto_adjust = True, progress=False)["Close"]
+        price = yf.download([stock], period="2y", auto_adjust = True, progress=False)["Close"]
         if(display_all):     
             ax.plot(price_normalization(price), '--')
         normalized_price = price_normalization(price)

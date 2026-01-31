@@ -1,4 +1,4 @@
-import pandas as df
+import pandas as pd
 
 def volatility(price):
     daily_return = price / price.shift() - 1
