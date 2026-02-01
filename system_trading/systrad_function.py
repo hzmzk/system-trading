@@ -91,6 +91,17 @@ def plot_agg_norm(stock_list, display_all=True):
     plt.show()
 
 
+# get risk-free rate from ^IRX (3-month US Treasury Bill)
+def irx_risk_free_rate():
+    annual_rate = yf.download("^IRX", period = "max", auto_adjust = True, progress=False)["Close"] / 100
+    
+    # de-annualize
+    daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
+
+    daily_rate.columns = ["daily_rf %"] 
+    return daily_rate * 100    
+
+
 def correlation_heatmap(multi_price, show_label=False):
     arr   = multi_price.corr().to_numpy().round(3)
     size  = arr.shape[0]

@@ -7,14 +7,16 @@ from datetime import datetime, timedelta
 from util import datetime_csv
 from systrad_function import price_normalization
 
-def update_price(price):
-    last_date = price.index[-1:].item() + timedelta(1)
-    yesterday = (datetime.now() - timedelta(1)).strftime('%Y-%m-%d')
 
-    stock = price.columns.item()
-    new_price = yf.download([stock], start=last_date, end=yesterday, auto_adjust = True, progress=False)["Close"]
-
-    return pd.concat([price, new_price])
+def update_price_data():
+    for stock_csv in os.listdir("price_data/"):
+        price = datetime_csv("price_data/" + stock_csv)
+        last_date = price.index[-1:].item()
+        stock = price.columns.item()
+        new_price = yf.download([stock], start=last_date, auto_adjust = True, progress=False)["Close"]
+        price = price.iloc[:-1]
+        price = pd.concat([price, new_price])
+        price.to_csv("price_data/" + stock + ".csv")
 
 def create_price_data(stock_list, horizon="2y"):
     for stock in stock_list:    
@@ -73,5 +75,18 @@ def create_sector_normalization_data(sector_list):
     print("Done")
 
 
+def to_date(x):
+    date = str(x)
+    date = '-'.join([date[:4], date[4:6], date[6:]])
+    return date
+
+def fama_risk_free_rate(fama_daily_rf_csv):
+    daily = pd.read_csv(fama_daily_rf_csv)
+
+    date = [to_date(i) for i in daily["Unnamed: 0"]]
+    date_index = pd.DatetimeIndex(date)
+
+    risk_free = pd.DataFrame({"rf":daily["RF"].to_list()}, index=date_index)
+    risk_free.to_csv("other_data/" + "FAMA_rf" + ".csv")
 
 
