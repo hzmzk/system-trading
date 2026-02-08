@@ -25,13 +25,13 @@ def price_normalization(price, truncate=100):
     return normalized_price
 
 
-def sector_trend(momentum_value, show_graph = False):
+def industry_trend_list(momentum_value, show_graph = False):
     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "healthcare", "industrials", "real-estate", "technology", "utilities"]
     passed_sector_list = []
     passed_industry_list = []
     for sector in sector_list:
         sector_print_trigger = True
-        multi_industry_norm_price = datetime_csv("sector_normalization_price/" + sector + ".csv")
+        multi_industry_norm_price = datetime_csv("industry_normalization_price/" + sector + ".csv", start="2024-01-01")
         for industry in multi_industry_norm_price.columns:
             industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
             if(industry_aggregate_momentum > momentum_value):
@@ -54,7 +54,7 @@ def sector_trend(momentum_value, show_graph = False):
 
 
 # Check trend forecast directly from yahoo finance
-def aggregate_momentum(industry_key, horizon="2y"):
+def industry_trend_check(industry_key, horizon="2y"):
     stock_list = yf.Industry(industry_key).top_companies.index
     multi_norm_price = pd.DataFrame()
 
@@ -92,8 +92,8 @@ def plot_agg_norm(stock_list, display_all=True):
 
 
 # get risk-free rate from ^IRX (3-month US Treasury Bill)
-def irx_risk_free_rate():
-    annual_rate = yf.download("^IRX", period = "max", auto_adjust = True, progress=False)["Close"] / 100
+def irx_risk_free_rate(start_date, end_date):
+    annual_rate = yf.download("^IRX", start = start_date, end = end_date, auto_adjust = True, progress=False)["Close"] / 100
     
     # de-annualize
     daily_rate = ( 1 + annual_rate ) ** (1/252) - 1

@@ -27,7 +27,7 @@ def monte_carlo_permutation(rule_outcome, daily_return):
         monte_carlo_distribution.append(noise_return.mean().item())
 
     return monte_carlo_distribution
-
+ 
 def percentile_rank(distribution, value):
     elements_lower_than_value = len([i for i in distribution if i < value]) 
     elements_total = len(distribution)
@@ -67,3 +67,22 @@ def rule_stats_summary(price, rule_outcome):
     plt.hist(carlo, label="montecarlo")
     plt.legend()
     plt.show()
+
+def get_sharpe_ratio(forecast, price):
+    daily_return = price/price.shift() - 1
+    daily_return = daily_return[1:]
+
+    common_index = forecast.index.intersection(price.index)
+
+    beginning = common_index.index[:1].item()
+    final = common_index.index[-1:].item()
+
+    risk_free_rate = irx_risk_free_rate(start_date=beginning, end_date=final)
+
+    rule_excess_return = (forecast[common_index] * daily_return[common_index] - risk_free_rate[common_index]).mean()
+
+    rule_excess_return_std = (forecast[common_index] * daily_return[common_index] - risk_free_rate[common_index]).std()
+
+    sharpe_ratio = ( rule_excess_return / rule_excess_return_std ) * 16
+
+    return sharpe_ratio 

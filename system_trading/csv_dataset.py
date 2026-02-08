@@ -23,7 +23,7 @@ def create_price_data(stock_list, horizon="2y"):
         price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
         price.to_csv("price_data/" + stock + ".csv")
 
-def create_sector_data(sector_list, horizon="2y"):
+def create_industry_data(sector_list, horizon="2y"):
     if(sector_list == "first-half"):
         sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities"]
     elif(sector_list == "second-half"):
@@ -42,7 +42,7 @@ def create_sector_data(sector_list, horizon="2y"):
     print("done")
 
 
-def create_sector_normalization_data(sector_list):
+def create_industry_normalization_data(sector_list):
     if(sector_list == "first-half"):
         sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities"]
     elif(sector_list == "second-half"):
@@ -62,7 +62,7 @@ def create_sector_normalization_data(sector_list):
                 
                 multi_norm_price = pd.DataFrame()
                 for stock in stock_list:    
-                    price = datetime_csv("price_data/" + stock + ".csv")
+                    price = datetime_csv("price_data/" + stock + ".csv", start="2024-01-01")
                     normalized_price = price_normalization(price)
                     multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
 
@@ -71,7 +71,7 @@ def create_sector_normalization_data(sector_list):
                 agg_norm_price = pd.DataFrame(agg_norm_price, columns=[industry])
                 multi_agg_norm_price = multi_agg_norm_price.join(agg_norm_price, how="outer")
 
-        multi_agg_norm_price.to_csv("sector_normalization_price/" + sector + ".csv")
+        multi_agg_norm_price.to_csv("industry_normalization_price/" + sector + ".csv")
     print("Done")
 
 
