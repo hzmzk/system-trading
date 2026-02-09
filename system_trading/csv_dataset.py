@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timedelta
 
 from util import datetime_csv
-from systrad_function import price_normalization
+from trade_function import price_normalization
 
 
 def update_price_data():
@@ -18,12 +18,12 @@ def update_price_data():
         price = pd.concat([price, new_price])
         price.to_csv("price_data/" + stock + ".csv")
 
-def create_price_data(stock_list, horizon="2y"):
+def create_price_data(stock_list):
     for stock in stock_list:    
-        price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
+        price = yf.download([stock], period="max", auto_adjust = True, progress=False)["Close"]
         price.to_csv("price_data/" + stock + ".csv")
 
-def create_industry_data(sector_list, horizon="2y"):
+def create_industry_data(sector_list):
     if(sector_list == "first-half"):
         sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities"]
     elif(sector_list == "second-half"):
@@ -37,7 +37,7 @@ def create_industry_data(sector_list, horizon="2y"):
                 stock_list = yf.Industry(industry).top_companies.index
 
                 for stock in stock_list:    
-                    price = yf.download([stock], period=horizon, auto_adjust = True, progress=False)["Close"]
+                    price = yf.download([stock], period="max", auto_adjust = True, progress=False)["Close"]
                     price.to_csv("price_data/" + stock + ".csv")
     print("done")
 
@@ -72,7 +72,7 @@ def create_industry_normalization_data(sector_list):
                 multi_agg_norm_price = multi_agg_norm_price.join(agg_norm_price, how="outer")
 
         multi_agg_norm_price.to_csv("industry_normalization_price/" + sector + ".csv")
-    print("Done")
+    print(sector_list, "Done")
 
 
 def to_date(x):

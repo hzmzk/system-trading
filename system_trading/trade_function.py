@@ -23,7 +23,7 @@ def price_normalization(price, truncate=100):
     
     normalized_price = normalized_daily_return.cumsum()
     return normalized_price
-
+ 
 
 def industry_trend_list(momentum_value, show_graph = False):
     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "healthcare", "industrials", "real-estate", "technology", "utilities"]
@@ -33,7 +33,8 @@ def industry_trend_list(momentum_value, show_graph = False):
         sector_print_trigger = True
         multi_industry_norm_price = datetime_csv("industry_normalization_price/" + sector + ".csv", start="2024-01-01")
         for industry in multi_industry_norm_price.columns:
-            industry_aggregate_momentum = multi_ewmac(multi_industry_norm_price[industry], parameter="normal")
+            industry_norm_price = pd.DataFrame({industry:multi_industry_norm_price[industry]})
+            industry_aggregate_momentum = multi_ewmac(industry_norm_price, parameter="normal")
             if(industry_aggregate_momentum > momentum_value):
                 passed_industry_list.append(industry)
                 if(sector_print_trigger):
