@@ -24,3 +24,10 @@ def datetime_csv(file_name, start="", end=""):
         end = df.index[-1]
 
     return df[start:end] 
+
+def common_index(df_list):
+    common_index = df_list[0].index
+    df_list = df_list[1:]
+    for df in df_list:
+        common_index = common_index.intersection(df.index)
+    return common_index

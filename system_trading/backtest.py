@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from util import volatility
+from trade_function import irx_risk_free_rate
+from util import volatility, common_index
 
 def bootstrap_reality_check(sample):
     zero_centered_sample = sample - np.mean(sample)
@@ -72,17 +73,20 @@ def get_sharpe_ratio(forecast, price):
     daily_return = price/price.shift() - 1
     daily_return = daily_return[1:]
 
-    common_index = forecast.index.intersection(price.index)
-
-    beginning = common_index.index[:1].item()
-    final = common_index.index[-1:].item()
-
+    beginning = forecast.index[0]
+    final = forecast.index[-1]
     risk_free_rate = irx_risk_free_rate(start_date=beginning, end_date=final)
 
-    rule_excess_return = (forecast[common_index] * daily_return[common_index] - risk_free_rate[common_index]).mean()
+    index = common_index([forecast, daily_return, risk_free_rate])
 
-    rule_excess_return_std = (forecast[common_index] * daily_return[common_index] - risk_free_rate[common_index]).std()
+    forecast = forecast.loc[index]
+    daily_return = daily_return.loc[index]
+    risk_free_rate = risk_free_rate.loc[index]
+
+    stock_name = daily_return.columns[0]
+
+    rule_excess_return = ((forecast * daily_return)[stock_name] - risk_free_rate["daily_rf"]).mean()
+    rule_excess_return_std = ((forecast * daily_return)[stock_name] - risk_free_rate["daily_rf"]).std()
 
     sharpe_ratio = ( rule_excess_return / rule_excess_return_std ) * 16
-
     return sharpe_ratio 

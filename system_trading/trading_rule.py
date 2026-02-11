@@ -2,7 +2,7 @@ import pandas as pd
 import yfinance as yf
 import numpy as np
 
-from util import volatility, datetime_csv
+from util import volatility, datetime_csv, common_index
 
 def ewmac(price, fast_span, weight="exponential", backtest_mode=False):
     match fast_span:
@@ -141,12 +141,9 @@ def multi_ewmac(price, parameter="exponential", backtest_mode=False):
     ewmac16 = ewmac(price, 16, weight=parameter, backtest_mode=True)
     #ewmac32 = ewmac(price, 32, weight=parameter)
     
-    if(backtest_mode):
-        common_index = ewmac8.index
-        list_dfs = [ewmac4, ewmac16]
-        for df in list_dfs:
-            common_index = common_index.intersection(df.index)
-        forecast = ( ewmac4.loc[common_index] + ewmac8.loc[common_index] + ewmac16.loc[common_index] ) / 3
+    if(backtest_mode):        
+        index = common_index([ewmac4, ewmac8, ewmac16])
+        forecast = ( ewmac4.loc[index] + ewmac8.loc[index] + ewmac16.loc[index] ) / 3
     else: 
         forecast = ( ewmac4.iloc[-1].item() + ewmac8.iloc[-1].item() + ewmac16.iloc[-1].item() ) / 3
 
@@ -158,8 +155,8 @@ def multi_accel(price, backtest_mode=False):
     accel16 = acceleration(price, 16, backtest_mode=True)
 
     if(backtest_mode):
-        common_index = accel8.index.intersection(accel16.index)
-        forecast = ( accel8.loc[common_index] + accel16.loc[common_index] ) / 2
+        index = common_index(accel8, accel16)
+        forecast = ( accel8.loc[index] + accel16.loc[index] ) / 2
     else: 
         forecast = ( accel8.iloc[-1].item() + accel16.iloc[-1].item() ) / 2
 
@@ -172,11 +169,8 @@ def multi_breakout(price, backtest_mode=False):
     breakout80  = breakout(price, 80, backtest_mode=True)
 
     if(backtest_mode):
-        common_index = breakout20.index
-        list_dfs = [breakout40, breakout80]
-        for df in list_dfs:
-            common_index = common_index.intersection(df.index)
-        forecast = ( breakout20.loc[common_index] + breakout40.loc[common_index] + breakout80.loc[common_index] ) / 3
+        index = common_index([breakout20, breakout40, breakout80])
+        forecast = ( breakout20.loc[index] + breakout40.loc[index] + breakout80.loc[index] ) / 3
     else: 
         forecast = ( breakout20.iloc[-1].item() + breakout40.iloc[-1].item() + breakout80.iloc[-1].item() ) / 3
 

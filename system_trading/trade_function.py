@@ -99,8 +99,8 @@ def irx_risk_free_rate(start_date, end_date):
     # de-annualize
     daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
 
-    daily_rate.columns = ["daily_rf %"] 
-    return daily_rate * 100    
+    daily_rate.columns = ["daily_rf"] 
+    return daily_rate     
 
 
 def correlation_heatmap(multi_price, show_label=False):
