@@ -1,15 +1,28 @@
 import pandas as pd
+import os
 import yfinance as yf
 
-import os
+from multiprocessing import Pool
 from datetime import datetime, timedelta
 
-from util import datetime_csv
+from util import datetime_csv, partition_list
 from trade_function import price_normalization
 
 
-def update_price_data():
-    for stock_csv in os.listdir("price_data/"):
+def update_database(parameter="all"):
+    every_price = partition_list(os.listdir("price_data/"))
+    every_sector = partition_list(["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"])
+    
+    if(parameter=="price"):
+        Pool().map(update_price_data, every_price)
+    elif(parameter=="industry_norm"):
+        Pool().map(create_industry_normalization_data, every_sector)
+    elif(parameter=="all"):
+        Pool().map(update_price_data, every_price)
+        Pool().map(create_industry_normalization_data, every_sector)
+
+def update_price_data(stock_list):
+    for stock_csv in stock_list:
         price = datetime_csv("price_data/" + stock_csv)
         last_date = price.index[-1:].item()
         stock = price.columns.item()
@@ -24,11 +37,6 @@ def create_price_data(stock_list):
         price.to_csv("price_data/" + stock + ".csv")
 
 def create_industry_data(sector_list):
-    if(sector_list == "first-half"):
-        sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities"]
-    elif(sector_list == "second-half"):
-        sector_list = ["healthcare", "industrials", "real-estate", "technology"]
-
     for sector in sector_list:
         industry_list = yf.Sector(sector).industries.index
 
@@ -39,15 +47,9 @@ def create_industry_data(sector_list):
                 for stock in stock_list:    
                     price = yf.download([stock], period="max", auto_adjust = True, progress=False)["Close"]
                     price.to_csv("price_data/" + stock + ".csv")
-    print("done")
-
+    print(sector_list, " done")
 
 def create_industry_normalization_data(sector_list):
-    if(sector_list == "first-half"):
-        sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities"]
-    elif(sector_list == "second-half"):
-        sector_list = ["healthcare", "industrials", "real-estate", "technology"]
-
     for sector in sector_list:
         industry_list = yf.Sector(sector).industries.index
         multi_agg_norm_price = pd.DataFrame()
@@ -61,7 +63,7 @@ def create_industry_normalization_data(sector_list):
                     create_price_data(stock_list)
                 
                 multi_norm_price = pd.DataFrame()
-                for stock in stock_list:    
+                for stock in stock_list:  
                     price = datetime_csv("price_data/" + stock + ".csv", start="2024-01-01")
                     normalized_price = price_normalization(price)
                     multi_norm_price = multi_norm_price.join(normalized_price, how="outer")
@@ -72,7 +74,7 @@ def create_industry_normalization_data(sector_list):
                 multi_agg_norm_price = multi_agg_norm_price.join(agg_norm_price, how="outer")
 
         multi_agg_norm_price.to_csv("industry_normalization_price/" + sector + ".csv")
-    print(sector_list, "Done")
+    print(sector_list, "done")
 
 
 def to_date(x):
