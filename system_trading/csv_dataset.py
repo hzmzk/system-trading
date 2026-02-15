@@ -9,16 +9,49 @@ from util import datetime_csv, partition_list
 from trade_function import price_normalization
 
 
+def create_sector_industries_data():
+     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"]    
+     for sector in sector_list:
+          industry_list = yf.Sector(sector).industries.index
+          with open("sector_industries/" + sector + ".csv", 'w') as myfile:
+               wr = csv.writer(myfile)
+               wr.writerow(industry_list)
+
+def sector_industries_list(sector):
+    with open("sector_industries/" + sector + ".csv") as myfile:
+        reader = csv.reader(myfile)
+        mylist = list(reader)
+    return mylist[0]
+
+def create_top_companies_data():
+     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"]    
+     for sector in sector_list:
+          industry_list = sector_industries_list(sector)
+          for industry in industry_list:
+               top_companies = yf.Industry(industry).top_companies
+               if(top_companies is not None):
+                    with open("top_companies/" + industry + ".csv", 'w') as myfile:
+                         wr = csv.writer(myfile)
+                         wr.writerow(top_companies.index.to_list())
+
+def industry_top_companies_list(industry):
+    with open("top_companies/" + industry + ".csv") as myfile:
+        reader = csv.reader(myfile)
+        mylist = list(reader)
+    return mylist[0]
+
 def update_database(parameter="all"):
     every_price = partition_list(os.listdir("price_data/"))
     every_sector = partition_list(["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"])
     
     if(parameter=="price"):
         Pool().map(update_price_data, every_price)
+        update_risk_free_rate()
     elif(parameter=="industry_norm"):
         Pool().map(create_industry_normalization_data, every_sector)
     elif(parameter=="all"):
         Pool().map(update_price_data, every_price)
+        update_risk_free_rate()
         Pool().map(create_industry_normalization_data, every_sector)
 
 def update_price_data(stock_list):
@@ -31,6 +64,14 @@ def update_price_data(stock_list):
         price = pd.concat([price, new_price])
         price.to_csv("price_data/" + stock + ".csv")
 
+def update_risk_free_rate():
+    rf = datetime_csv("other_data/^IRX.csv")
+    last_date = rf.index[-1:].item()
+    new_rf = yf.download(["^IRX"], start=last_date, auto_adjust = True, progress=False)["Close"]
+    rf = rf.iloc[:-1]
+    rf = pd.concat([rf, new_rf])
+    rf.to_csv("other_data/^IRX.csv")
+
 def create_price_data(stock_list):
     for stock in stock_list:    
         price = yf.download([stock], period="max", auto_adjust = True, progress=False)["Close"]
@@ -38,7 +79,7 @@ def create_price_data(stock_list):
 
 def create_industry_data(sector_list):
     for sector in sector_list:
-        industry_list = yf.Sector(sector).industries.index
+        industry_list = sector_industries_list(sector)
 
         for industry in industry_list:
             if(yf.Industry(industry).top_companies is not None):
@@ -51,7 +92,7 @@ def create_industry_data(sector_list):
 
 def create_industry_normalization_data(sector_list):
     for sector in sector_list:
-        industry_list = yf.Sector(sector).industries.index
+        industry_list = sector_industries_list(sector)
         multi_agg_norm_price = pd.DataFrame()
 
         for industry in industry_list:

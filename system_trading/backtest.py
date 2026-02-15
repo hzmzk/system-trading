@@ -42,7 +42,8 @@ def detrend_return(price):
 
 def rule_return(rule_outcome, detrended_daily_return):
     column_name = rule_outcome.columns.item()
-    return (rule_outcome * detrended_daily_return.loc[rule_outcome.index])[column_name]
+    index = common_index([rule_outcome, detrended_daily_return])
+    return (rule_outcome.loc[index] * detrended_daily_return.loc[index])[column_name]
 
 def cap_forecast(forecast):
     column_name = forecast.columns.item()
@@ -50,6 +51,42 @@ def cap_forecast(forecast):
     forecast[forecast[column_name] > 5] = 1
     forecast[forecast[column_name] < -5] = -1
     return forecast
+
+def sharpe_ratio(price, rule_outcome):
+    daily_return = price/price.shift() - 1
+    daily_return = daily_return[1:]
+
+    beginning = rule_outcome.index[0]
+    final = rule_outcome.index[-1]
+    risk_free_rate = irx_risk_free_rate(start_date=beginning, end_date=final)
+
+    index = common_index([rule_outcome, daily_return, risk_free_rate])
+
+    rule_outcome = rule_outcome.loc[index]
+    daily_return = daily_return.loc[index]
+    risk_free_rate = risk_free_rate.loc[index]
+
+    stock_name = daily_return.columns[0]
+
+    rule_excess_return = ((rule_outcome * daily_return)[stock_name] - risk_free_rate["daily_rf"]).mean()
+    rule_excess_return_std = ((rule_outcome * daily_return)[stock_name] - risk_free_rate["daily_rf"]).std()
+
+    sharpe_ratio = ( rule_excess_return / rule_excess_return_std ) * 16
+    return sharpe_ratio 
+
+def p_value_bootstrap(price, rule_outcome):
+    detrended_daily_return = detrend_return(price)
+    sample_return = rule_return(rule_outcome,detrended_daily_return)
+    boot_distribution = bootstrap_reality_check(sample_return)
+    p_value = 1 - percentile_rank(boot_distribution, sample_return.mean())
+    return p_value
+
+def p_value_montecarlo(price, rule_outcome):
+    detrended_daily_return = detrend_return(price)
+    sample_return = rule_return(rule_outcome,detrended_daily_return)
+    carlo_distribution = monte_carlo_permutation(rule_outcome, detrended_daily_return)
+    p_value = 1 - percentile_rank(carlo_distribution, sample_return.mean())
+    return p_value
 
 def rule_stats_summary(price, rule_outcome):
     detrended_daily_return = detrend_return(price)
@@ -69,24 +106,12 @@ def rule_stats_summary(price, rule_outcome):
     plt.legend()
     plt.show()
 
-def get_sharpe_ratio(forecast, price):
-    daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
 
-    beginning = forecast.index[0]
-    final = forecast.index[-1]
-    risk_free_rate = irx_risk_free_rate(start_date=beginning, end_date=final)
 
-    index = common_index([forecast, daily_return, risk_free_rate])
+from trade_class import Stock
+from trading_rule import ewmac
 
-    forecast = forecast.loc[index]
-    daily_return = daily_return.loc[index]
-    risk_free_rate = risk_free_rate.loc[index]
-
-    stock_name = daily_return.columns[0]
-
-    rule_excess_return = ((forecast * daily_return)[stock_name] - risk_free_rate["daily_rf"]).mean()
-    rule_excess_return_std = ((forecast * daily_return)[stock_name] - risk_free_rate["daily_rf"]).std()
-
-    sharpe_ratio = ( rule_excess_return / rule_excess_return_std ) * 16
-    return sharpe_ratio 
+def xxx(stock_symbol):
+    price = Stock(stock_symbol).price
+    forecast = ewmac(price, 16, backtest_mode=True)
+    return sharpe_ratio(price, forecast)

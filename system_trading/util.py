@@ -31,3 +31,6 @@ def common_index(df_list):
     for df in df_list:
         common_index = common_index.intersection(df.index)
     return common_index
+
+
+
