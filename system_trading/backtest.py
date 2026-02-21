@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from trade_function import irx_risk_free_rate
 from util import volatility, common_index
+from trade_class import Stock
 
 def bootstrap_reality_check(sample):
     zero_centered_sample = sample - np.mean(sample)
@@ -51,6 +51,15 @@ def cap_forecast(forecast):
     forecast[forecast[column_name] > 5] = 1
     forecast[forecast[column_name] < -5] = -1
     return forecast
+
+def irx_risk_free_rate(start_date, end_date):
+    annual_rate = datetime_csv("other_data/^IRX.csv", start=start_date, end=end_date) / 100
+     
+    # de-annualize
+    daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
+
+    daily_rate.columns = ["daily_rf"] 
+    return daily_rate  
 
 def sharpe_ratio(price, rule_outcome):
     daily_return = price/price.shift() - 1
@@ -105,6 +114,13 @@ def rule_stats_summary(price, rule_outcome):
     plt.hist(carlo, label="montecarlo")
     plt.legend()
     plt.show()
+
+def size_check(stock_list, minimum_data=500):
+    new_stock_list = []
+    for stock in stock_list:
+        if(Stock(stock).price.index.size >= minimum_data):
+            new_stock_list.append(stock)
+    return new_stock_list
 
 
 

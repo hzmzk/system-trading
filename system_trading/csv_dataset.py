@@ -5,8 +5,7 @@ import yfinance as yf
 from multiprocessing import Pool
 from datetime import datetime, timedelta
 
-from util import datetime_csv, partition_list
-from trade_function import price_normalization
+from util import datetime_csv, partition_list,  price_normalization
 
 
 def create_sector_industries_data():

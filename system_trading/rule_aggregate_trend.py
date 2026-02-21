@@ -1,29 +1,34 @@
 import pandas as pd
 import yfinance as yf
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from util import volatility, datetime_csv
-from trading_rule import multi_ewmac
+from rule_ewmac import multi_ewmac
+from util import datetime_csv
 
 
-def price_normalization(price, truncate=100):
-    std_percentage = pd.DataFrame(columns=price.columns, index=price.index)
-    for tally in range(len(price.index)):
-        std_percentage.iloc[tally] = volatility(price.iloc[:tally + 1])
+def industry_trend_rule(stock, backtest_mode=False):
+    ticker = yf.Ticker(stock)
+    sector = ticker.info.get('sectorKey')
+    industry = ticker.info.get('industryKey')
 
-    price = price.iloc[truncate:]
-    std_percentage = std_percentage.iloc[truncate:]
+    multi_industry_norm_price = datetime_csv("industry_normalization_price/" + sector + ".csv", start="2024-01-01")
+    industry_norm_price = pd.DataFrame({industry:multi_industry_norm_price[industry]})
+
+    if(not backtest_mode):
+        forecast = multi_ewmac(industry_norm_price, parameter="normal")
+    else:
+        forecast = multi_ewmac(industry_norm_price, parameter="normal", backtest_mode=True)
     
-    normalized_daily_return = (price - price.shift()) / (std_percentage * price)
-    stock_name = price.columns[0]
-    normalized_daily_return.loc[normalized_daily_return[stock_name] > 6] = 6
-    normalized_daily_return.loc[normalized_daily_return[stock_name] < -6] = -6
-    
-    normalized_price = normalized_daily_return.cumsum()
-    return normalized_price
- 
+    if(not backtest_mode):
+        forecast = min(max(forecast,-20), 20) 
+    else:
+        column_name = industry_norm_price.columns.item()
+        forecast[forecast[column_name] > 20] = 20
+        forecast[forecast[column_name] < -20] = -20
+
+    return forecast
+
 
 def industry_trend_list(momentum_value, show_graph = False):
     sector_list = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "healthcare", "industrials", "real-estate", "technology", "utilities"]
@@ -89,34 +94,4 @@ def plot_agg_norm(stock_list, display_all=True):
     ax.plot(agg_norm_price, color="black")
     
     plt.tight_layout()
-    plt.show()   
-
-# get risk-free rate from ^IRX (3-month US Treasury Bill)
-def irx_risk_free_rate(start_date, end_date):
-    annual_rate = datetime_csv("other_data/^IRX.csv", start=start_date, end=end_date) / 100
-     
-    # de-annualize
-    daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
-
-    daily_rate.columns = ["daily_rf"] 
-    return daily_rate  
-
-
-def correlation_heatmap(multi_price, show_label=False):
-    arr   = multi_price.corr().to_numpy().round(3)
-    size  = arr.shape[0]
-    names = multi_price.corr().index.to_list()
-
-    fig, ax = plt.subplots()
-    im      = ax.imshow(arr, cmap="RdBu", vmin=-1, vmax=1)
-
-    if(show_label):
-        ax.set_xticks(range(size), labels=names)
-        ax.set_yticks(range(size), labels=names)
-
-    for tally1 in range(size):
-        for tally2 in range(size):
-            text = ax.text(tally2, tally1, arr[tally1,tally2], ha="center", va="center", color="w")
-
-    fig.tight_layout()
     plt.show()
