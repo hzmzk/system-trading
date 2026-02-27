@@ -1,4 +1,4 @@
-from util import common_index
+from backtest import *
 
 def breakout(price, horizon, backtest_mode=False):
     match horizon:
@@ -45,3 +45,73 @@ def multi_breakout(price, backtest_mode=False):
         forecast = ( breakout20.iloc[-1].item() + breakout40.iloc[-1].item() + breakout80.iloc[-1].item() ) / 3
 
     return forecast
+
+#######################################################################################################
+
+def dr_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    detrended_daily_return = detrend_return(price)
+    sample_return = rule_return(forecast,detrended_daily_return).mean().item()
+    return sample_return
+
+def sr_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return sharpe_ratio(price, forecast)
+
+def bt_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return p_value_bootstrap(price, forecast)
+
+def mc_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return p_value_montecarlo(price, forecast)
+
+def turnover_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return turnover(forecast)
+
+def win_percent_breakout(price, horizon):
+    forecast = breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return win_percent(price,forecast)
+
+#########################################################################################################
+
+def dr_multi_breakout(price):
+    forecast = multi_breakout(price, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+
+    detrended_daily_return = detrend_return(price)
+    sample_return = rule_return(forecast,detrended_daily_return).mean().item()
+    return sample_return
+
+def sr_multi_breakout(price):
+    forecast = multi_breakout(price, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+
+    sr = sharpe_ratio(price, forecast)
+    return sr
+
+def bt_multi_breakout(price):
+    forecast = multi_breakout(price, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    
+    bt = p_value_bootstrap(price, forecast)
+    return bt
+
+def mc_multi_breakout(price):
+    forecast = multi_breakout(price, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+
+    mc = p_value_montecarlo(price, forecast)
+    return mc
+
+def turnover_multi_breakout(price, horizon):
+    forecast = multi_breakout(price, horizon, backtest_mode=True) 
+    forecast = cap_forecast(forecast)
+    return turnover(forcast)

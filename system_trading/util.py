@@ -13,7 +13,6 @@ def partition_list(mylist, partition=8):
     
     return partitioned_list 
 
-
 def datetime_csv(file_name, start="", end=""):
     df = pd.read_csv(file_name)
     datetime_index = pd.DatetimeIndex(df["Date"])
@@ -27,7 +26,6 @@ def datetime_csv(file_name, start="", end=""):
 
     return df[start:end] 
 
-
 def common_index(df_list):
     common_index = df_list[0].index
     df_list = df_list[1:]
@@ -35,29 +33,13 @@ def common_index(df_list):
         common_index = common_index.intersection(df.index)
     return common_index
 
-
-def inertia(forecast, minimum_change=0.01):
-    new_forecast = forecast.copy()
-
-    for i in range(len(forecast.index) - 1):
-        percent_change = forecast.iloc[i+1].item() / new_forecast.iloc[i].item() - 1
-       
-        if(abs(percent_change) <= minimum_change):
-            new_forecast.iloc[i+1] = new_forecast.iloc[i]
-        else:
-            new_forecast.iloc[i+1] = forecast.iloc[i+1]
-    return new_forecast
-
-
 def price_normalization(price, truncate=100):
-    std_percentage = pd.DataFrame(columns=price.columns, index=price.index)
-    for tally in range(len(price.index)):
-        std_percentage.iloc[tally] = volatility(price.iloc[:tally + 1])
+    price_volatility = price.rolling(25).std()
 
     price = price.iloc[truncate:]
-    std_percentage = std_percentage.iloc[truncate:]
-    
-    normalized_daily_return = (price - price.shift()) / (std_percentage * price)
+    price_volatility = price_volatility[truncate:]
+
+    normalized_daily_return = (price - price.shift()) / (price_volatility)
     stock_name = price.columns[0]
     normalized_daily_return.loc[normalized_daily_return[stock_name] > 6] = 6
     normalized_daily_return.loc[normalized_daily_return[stock_name] < -6] = -6
@@ -85,4 +67,17 @@ def correlation_heatmap(multi_price, show_label=False):
     fig.tight_layout()
     plt.show()
 
+def to_date(x):
+    date = str(x)
+    date = '-'.join([date[:4], date[4:6], date[6:]])
+    return date
 
+
+def fama_risk_free_rate(fama_daily_rf_csv):
+    daily = pd.read_csv(fama_daily_rf_csv)
+
+    date = [to_date(i) for i in daily["Unnamed: 0"]]
+    date_index = pd.DatetimeIndex(date)
+
+    risk_free = pd.DataFrame({"rf":daily["RF"].to_list()}, index=date_index)
+    risk_free.to_csv("other_data/" + "FAMA_rf" + ".csv")

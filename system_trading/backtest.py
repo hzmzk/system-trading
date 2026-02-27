@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import sys
 
-from util import volatility, common_index
+from util import volatility, common_index, datetime_csv
 from trade_class import Stock
 
 def bootstrap_reality_check(sample):
@@ -16,7 +17,7 @@ def bootstrap_reality_check(sample):
         bootstrap_distribution.append(resample_mean)
     
     return bootstrap_distribution
-
+ 
 def monte_carlo_permutation(rule_outcome, daily_return):
     rule_outcome = rule_outcome.reset_index(drop=True)
     
@@ -45,12 +46,40 @@ def rule_return(rule_outcome, detrended_daily_return):
     index = common_index([rule_outcome, detrended_daily_return])
     return (rule_outcome.loc[index] * detrended_daily_return.loc[index])[column_name]
 
-def cap_forecast(forecast):
+def cap_forecast(forecast, value_cap=10):
+    new_forecast = forecast.copy()
     column_name = forecast.columns.item()
-    forecast[(forecast[column_name] < 5) & (forecast[column_name] > -5)] = 0
-    forecast[forecast[column_name] > 5] = 1
-    forecast[forecast[column_name] < -5] = -1
-    return forecast
+    new_forecast[forecast[column_name] > value_cap] = 10
+    new_forecast[forecast[column_name] < -value_cap] = -10
+    new_forecast = new_forecast / 10
+    return new_forecast
+
+def buffer_forecast(forecast, minimum_change=0.1):
+    column_name = forecast.columns.item()
+    forecast[forecast[column_name] == 0] = sys.float_info.min
+    new_forecast = forecast.copy()
+    for i in range(len(forecast.index) - 1):
+        abs_percent_change = abs(forecast.iloc[i+1].item() / new_forecast.iloc[i].item() - 1)
+        if(abs_percent_change <= minimum_change):
+            new_forecast.iloc[i+1] = new_forecast.iloc[i]
+        else:
+            new_forecast.iloc[i+1] = forecast.iloc[i+1]
+    return new_forecast
+
+def turnover(forecast, minimum_change=0.1):
+    column_name = forecast.columns.item()
+    forecast[forecast[column_name] == 0] = sys.float_info.min
+    new_forecast = forecast.copy()
+    turnover_count = 0
+    for i in range(len(forecast.index) - 1):
+        abs_percent_change = abs(forecast.iloc[i+1].item() / new_forecast.iloc[i].item() - 1)
+        if(abs_percent_change <= minimum_change):
+            new_forecast.iloc[i+1] = new_forecast.iloc[i]
+        else:
+            new_forecast.iloc[i+1] = forecast.iloc[i+1]
+            turnover_count = turnover_count + 1
+    total_year = new_forecast.size / 252
+    return turnover_count / total_year
 
 def irx_risk_free_rate(start_date, end_date):
     annual_rate = datetime_csv("other_data/^IRX.csv", start=start_date, end=end_date) / 100
@@ -81,6 +110,8 @@ def sharpe_ratio(price, rule_outcome):
     rule_excess_return_std = ((rule_outcome * daily_return)[stock_name] - risk_free_rate["daily_rf"]).std()
 
     sharpe_ratio = ( rule_excess_return / rule_excess_return_std ) * 16
+    sharpe_ratio = sharpe_ratio.item()
+
     return sharpe_ratio 
 
 def p_value_bootstrap(price, rule_outcome):
@@ -115,19 +146,48 @@ def rule_stats_summary(price, rule_outcome):
     plt.legend()
     plt.show()
 
-def size_check(stock_list, minimum_data=500):
+def price_filter(stock_list, minimum_data=4444):
+    price_list = []
+    for stock in stock_list:
+        price = Stock(stock).price
+        if(price.index.size >= minimum_data):
+            price_list.append(price[-minimum_data:])
+    return price_list
+
+def stock_filter(stock_list, minimum_data=4444):
     new_stock_list = []
     for stock in stock_list:
-        if(Stock(stock).price.index.size >= minimum_data):
+        price = Stock(stock).price
+        if(price.index.size >= minimum_data):
             new_stock_list.append(stock)
     return new_stock_list
 
+def trade_cost(asset_type, price):
+    if(asset_type == "stock" or asset_type == "etf"):
+        cost = 0.35 
+    #price_volatility = price.iloc[-1].item() * volatility(price)
+    price_volatility = 2000 * volatility(price)
+    cost_sr = 2 * cost / (price_volatility * 16)
+    return cost_sr
+    
+def win_percent(price, forecast):
+    daily_return = price/price.shift() - 1
+    daily_return = daily_return[1:]
+
+    column_name = price.columns.item()
+    index = common_index([daily_return, forecast])
+    outcome = forecast.loc[index] * daily_return.loc[index]
+
+    total = outcome.size
+    win_rate = outcome[outcome[column_name] > 0].size / total
+
+    return win_rate
 
 
-from trade_class import Stock
-from trading_rule import ewmac
 
-def xxx(stock_symbol):
-    price = Stock(stock_symbol).price
-    forecast = ewmac(price, 16, backtest_mode=True)
-    return sharpe_ratio(price, forecast)
+
+
+
+
+
+
