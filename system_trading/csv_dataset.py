@@ -8,16 +8,19 @@ from datetime import datetime, timedelta
 
 from util import datetime_csv, partition_list,  price_normalization
 
-def update_database():
+
+def update_list():
     create_sector_industries_data()
     create_top_companies_data()
-    update_risk_free_rate()
+    
+def update_database():
     remove_empty()
+    update_risk_free_rate()
 
     every_price = os.listdir("price_data/")
-    every_sector = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"]
-    
     Pool().map(update_price_data, every_price)
+
+    every_sector = ["basic-materials", "communication-services", "consumer-cyclical", "consumer-defensive", "energy", "financial-services", "utilities", "healthcare", "industrials", "real-estate", "technology"]
     Pool().map(create_industry_normalization_data, every_sector)
 
 #return list of industries in a sector
@@ -69,7 +72,7 @@ def create_industry_data(sector_list):
                     price.to_csv("price_data/" + stock + ".csv")
     print(sector_list, " done")
 
-def create_industry_normalization_data(sector, start_date="2010"):
+def create_industry_normalization_data(sector, start_date="2020"):
 
     industry_list = sector_industries_list(sector)
     multi_agg_norm_price = pd.DataFrame()

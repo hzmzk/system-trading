@@ -4,31 +4,32 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import os
 
-from csv_dataset import sector_industries_list, industry_top_companies_list
-from rule_ewmac import multi_ewmac
+from functools import partial
+from multiprocessing import Pool
+
+from csv_dataset import sector_industries_list, industry_top_companies_list, create_industry_normalization_data
+from rule_ewmac import multi_ewmac, multi_ewmac_list
 from util import datetime_csv, price_normalization
 from backtest import *
 from trade_class import Stock
  
 
-def industry_trend_rule(stock, start_date="2010", backtest_mode=False):
-    ticker = yf.Ticker(stock)
-    industry = ticker.info.get('industryKey')
+def industry_trend_rule(ticker, start_date="2010"):
+    industry = Stock(ticker).industry
+    industry_norm_price = datetime_csv("industry_normalization_price/" + industry + ".csv", start=start_date)
+    forecast = multi_ewmac(industry_norm_price, parameter="normal")
+    forecast = min(max(forecast,-20), 20) 
+    return forecast
+
+def industry_trend_rule_list(ticker, start_date="2010"):
+    industry = Stock(ticker).industry
 
     industry_norm_price = datetime_csv("industry_normalization_price/" + industry + ".csv", start=start_date)
-
-    if(not backtest_mode):
-        forecast = multi_ewmac(industry_norm_price, parameter="normal")
-    else:
-        forecast = multi_ewmac(industry_norm_price, parameter="normal", backtest_mode=True)
+    forecast = multi_ewmac_list(industry_norm_price, parameter="normal")
     
-    if(not backtest_mode):
-        forecast = min(max(forecast,-20), 20) 
-    else:
-        industry_name = industry_norm_price.columns.item()
-        forecast[forecast[industry_name] > 20] = 20
-        forecast[forecast[industry_name] < -20] = -20
-        forecast = forecast.rename(columns={industry_name:stock})
+    forecast[forecast[industry] > 20] = 20
+    forecast[forecast[industry] < -20] = -20
+    forecast = forecast.rename(columns={industry:ticker})
 
     return forecast
 
@@ -103,40 +104,12 @@ def plot_agg_norm(industry_key, start_date="2024-01-01", display_all=True):
 
 #######################################################################################################
 
-def dr_industry_trend_rule(stock):
-    price = Stock(stock).price
-    
-    forecast = industry_trend_rule(stock, backtest_mode=True) 
-    forecast = cap_forecast(forecast)
-
-    detrended_daily_return = detrend_return(price)
-    sample_return = rule_return(forecast,detrended_daily_return).mean()
-    return sample_return
-
-def sr_industry_trend_rule(stock):
-    price = Stock(stock).price
-
-    forecast = industry_trend_rule(stock, backtest_mode=True) 
-    forecast = cap_forecast(forecast)
+def test_industry_trend_rule(ticker, statistics):
+    price = Stock(ticker).price
+    forecast = industry_trend_rule_list(ticker)
 
     index = common_index([price, forecast])
     price = price.loc[index]
     forecast = forecast.loc[index]
 
-    return sharpe_ratio(price, forecast)
-
-def bt_industry_trend_rule(price):
-    price = Stock(stock).price
-
-    forecast = industry_trend_rule(stock, backtest_mode=True) 
-    forecast = cap_forecast(forecast)
-    
-    return p_value_bootstrap(price, forecast)
-
-def mc_industry_trend_rule(price):
-    price = Stock(stock).price
-
-    forecast = industry_trend_rule(stock, backtest_mode=True) 
-    forecast = cap_forecast(forecast)
-    
-    return p_value_montecarlo(price, forecast)
+    return rule_test(price,forecast,statistics)

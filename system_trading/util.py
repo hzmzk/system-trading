@@ -6,6 +6,12 @@ def volatility(price):
     ewma_vol = (((daily_return - ewma_mean)**2).ewm(span=36, adjust=False).mean() ** 0.5).iloc[-1].item()
     return ewma_vol
 
+def volatility_list(price):
+    daily_return = price / price.shift() - 1
+    ewma_mean = daily_return.ewm(span=36, adjust=False).mean()
+    ewma_vol = ((daily_return - ewma_mean)**2).ewm(span=36, adjust=False).mean() ** 0.5
+    return ewma_vol
+
 
 def partition_list(mylist, partition=8):
     list_length = len(mylist)
@@ -35,6 +41,7 @@ def common_index(df_list):
 
 def price_normalization(price, truncate=100):
     price_volatility = price.rolling(25).std()
+    #price_volatility = price * volatility_list(price)
 
     price = price.iloc[truncate:]
     price_volatility = price_volatility[truncate:]
