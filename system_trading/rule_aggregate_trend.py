@@ -7,24 +7,24 @@ import os
 from functools import partial
 from multiprocessing import Pool
 
-from csv_dataset import sector_industries_list, industry_top_companies_list, create_industry_normalization_data
+from csv_dataset import sector_industries_list
 from rule_ewmac import multi_ewmac, multi_ewmac_list
 from util import datetime_csv, price_normalization
 from backtest import *
 from trade_class import Stock
  
 
-def industry_trend_rule(ticker, start_date="2010"):
+def aggregate_trend(ticker, start_date="2010"):
     industry = Stock(ticker).industry
-    industry_norm_price = datetime_csv("industry_normalization_price/" + industry + ".csv", start=start_date)
+    industry_norm_price = datetime_csv("aggregate_normalization_price/" + industry + ".csv", start=start_date)
     forecast = multi_ewmac(industry_norm_price, parameter="normal")
     forecast = min(max(forecast,-20), 20) 
     return forecast
 
-def industry_trend_rule_list(ticker, start_date="2010"):
+def aggregate_trend_list(ticker, start_date="2010"):
     industry = Stock(ticker).industry
 
-    industry_norm_price = datetime_csv("industry_normalization_price/" + industry + ".csv", start=start_date)
+    industry_norm_price = datetime_csv("aggregate_normalization_price/" + industry + ".csv", start=start_date)
     forecast = multi_ewmac_list(industry_norm_price, parameter="normal")
     
     forecast[forecast[industry] > 20] = 20
@@ -42,9 +42,9 @@ def industry_trend_list(momentum_value, start_date="2024", show_graph = False):
         sector_print_trigger = True
         industry_list =  sector_industries_list(sector)
         for industry in industry_list:
-            if(industry + ".csv" not in os.listdir("industry_normalization_price/")):
+            if(industry + ".csv" not in os.listdir("aggregate_normalization_price/")):
                 continue
-            industry_norm_price = datetime_csv("industry_normalization_price/" + industry + ".csv", start=start_date)
+            industry_norm_price = datetime_csv("aggregate_normalization_price/" + industry + ".csv", start=start_date)
             industry_aggregate_momentum = multi_ewmac(industry_norm_price, parameter="normal")
             if(industry_aggregate_momentum > momentum_value):
                 passed_industry_list.append(industry)
@@ -66,7 +66,7 @@ def industry_trend_list(momentum_value, start_date="2024", show_graph = False):
 
 
 # Check trend forecast directly from yahoo finance
-def industry_trend_check(industry_key, start_date="2024-01-01"):
+def aggregate_trend_check(industry_key, start_date="2024-01-01"):
     stock_list = yf.Industry(industry_key).top_companies.index
     multi_norm_price = pd.DataFrame()
 
@@ -104,9 +104,9 @@ def plot_agg_norm(industry_key, start_date="2024-01-01", display_all=True):
 
 #######################################################################################################
 
-def test_industry_trend_rule(ticker, statistics):
+def test_aggregate_trend(ticker, statistics):
     price = Stock(ticker).price
-    forecast = industry_trend_rule_list(ticker)
+    forecast = aggregate_trend_list(ticker)
 
     index = common_index([price, forecast])
     price = price.loc[index]

@@ -84,30 +84,32 @@ def multi_ewmac_list(price, parameter="exponential"):
  
 #######################################################################################################
 
-def test_ewmac(price, parameter, statistics):
+def test_ewmac(ticker, parameter, statistics, start, end):
+    price = Stock(ticker, start_date=start, end_date=end).price
     forecast = ewmac_list(price, parameter)
-    return rule_test(price,forecast,statistics)
+    return rule_test(ticker, forecast, statistics, start, end)
 
-def test_multi_ewmac(price,statistics):
+def test_multi_ewmac(ticker, statistics, start, end):
+    price = Stock(ticker, start_date=start, end_date=end).price
     forecast = multi_ewmac_list(price)
     return rule_test(price,forecast,statistics)
 
-def ewmac_jumbo_return(price_list, parameter):
-    individual_return_list = pd.DataFrame()
-    for price in price_list:
-        forecast = ewmac_list(price, parameter)
-        position = risk_target_position(price, forecast)
-        individual_return_list = individual_return_list.join(strategy_return(price, position), how="outer")
-    jumbo_return = pd.DataFrame(individual_return_list.mean(axis="columns"),columns=["jumbo_return"])
-    return jumbo_return
+# def ewmac_jumbo_return(price_list, parameter):
+#     individual_return_list = pd.DataFrame()
+#     for price in price_list:
+#         forecast = ewmac_list(price, parameter)
+#         position = risk_target_position(price, forecast)
+#         individual_return_list = individual_return_list.join(strategy_return(price, position), how="outer")
+#     jumbo_return = pd.DataFrame(individual_return_list.mean(axis="columns"),columns=["jumbo_return"])
+#     return jumbo_return
 
-def multi_ewmac_jumbo_return(price_list):
-    individual_return_list = pd.DataFrame()
-    for price in price_list:
-        forecast = multi_ewmac_list(price)
-        position = risk_target_position(price, forecast)
-        individual_return_list = individual_return_list.join(strategy_return(price, position), how="outer")
-    jumbo_return = pd.DataFrame(individual_return_list.mean(axis="columns"),columns=["jumbo_return"])
-    return jumbo_return
+# def multi_ewmac_jumbo_return(price_list):
+#     individual_return_list = pd.DataFrame()
+#     for price in price_list:
+#         forecast = multi_ewmac_list(price)
+#         position = risk_target_position(price, forecast)
+#         individual_return_list = individual_return_list.join(strategy_return(price, position), how="outer")
+#     jumbo_return = pd.DataFrame(individual_return_list.mean(axis="columns"),columns=["jumbo_return"])
+#     return jumbo_return
 
 

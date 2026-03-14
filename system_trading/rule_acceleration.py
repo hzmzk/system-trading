@@ -74,7 +74,6 @@ def test_accel(price, parameter, statistics):
     forecast = accel_list(price, parameter)
     return rule_test(price,forecast,statistics)
 
-
 def test_multi_accel(statistics, price):
     forecast = multi_accel_list(price)
     return rule_test(price,forecast,statistics)

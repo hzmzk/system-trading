@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def volatility(price):
     daily_return = price / price.shift() - 1
@@ -32,6 +33,26 @@ def datetime_csv(file_name, start="", end=""):
 
     return df[start:end] 
 
+def multi_datetime_csv(file, parameter="", start="", end=""):
+    if(parameter == ""):
+        parameter = ["Close","High","Low","Open","Volume"]
+
+    df = pd.read_csv(file)
+    ticker = df["Close"].iloc[0]
+
+    parameter_column = pd.MultiIndex.from_product([parameter,[ticker]], names=['Price','Ticker'])
+    datetime_index = pd.DatetimeIndex(df["Price"].iloc[2:].to_list(), name="Date")
+
+    data = df[parameter].iloc[2:].apply(pd.to_numeric).to_numpy()
+    df = pd.DataFrame(data, index=datetime_index, columns=parameter_column)
+
+    if(start == ""):
+        start = df.index[0]
+    if(end == ""):
+        end = df.index[-1]
+
+    return df[parameter].loc[start:end]
+
 def common_index(df_list):
     common_index = df_list[0].index
     df_list = df_list[1:]
@@ -55,7 +76,11 @@ def price_normalization(price, truncate=100):
     return normalized_price
    
 
-def correlation_heatmap(multi_price, show_label=False):
+def correlation_heatmap(price_list, show_label=False):
+    multi_price = pd.DataFrame()
+    for price in price_list:
+        multi_price = multi_price.join(price, how="outer")
+
     arr   = multi_price.corr().to_numpy().round(3)
     size  = arr.shape[0]
     names = multi_price.corr().index.to_list()

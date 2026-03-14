@@ -4,9 +4,67 @@ import matplotlib.pyplot as plt
 import sys
 import os
 import pickle
+import json
 
 from util import volatility, volatility_list, common_index, datetime_csv
 from trade_class import Stock
+from csv_dataset import industry_basket
+
+
+###############################################################################################################################
+
+def rule_test(ticker, forecast, statistics, start, end):
+    capital = 1000
+    transaction_cost = 0.5
+
+    price = Stock(ticker, start_date=start, end_date=end).price
+
+    match statistics:
+        case "forecast_average":
+            return 10 / abs(forecast).mean()
+        
+
+    #forecast = enter_exit_position(forecast) * 10
+    position = risk_target_position(price,forecast)
+
+    match statistics:
+        case "sharpe_ratio":
+            open_price = Stock(ticker).open
+            investment_return = strategy_return(open_price, position.shift())
+            return sharpe_ratio(investment_return)
+        
+        case "post_cost_sharpe_ratio":
+            position = position_inertia(position)
+
+            open_price = Stock(ticker).open
+            investment_return = strategy_return(open_price, position.shift())
+            
+            sr = sharpe_ratio(investment_return)
+            turnover_count = turnover(position)
+            cost_sr = trade_cost_sr(price, capital, transaction_cost)
+            
+            return sr - cost_sr * turnover_count
+        
+        case "turnover":
+            position = position_inertia(position)
+            return turnover(position)
+        
+        case "bootstrap":
+            return p_value_bootstrap(price, position)
+        
+        case "monte_carlo":
+            return p_value_montecarlo(price, position)
+        
+        case "win_percentage":
+            return win_percent(price, position)
+        
+        case "test":
+            open_price = Stock(ticker).open
+            investment_return = strategy_return(open_price, position.shift())
+            return sharpe_ratio(investment_return)
+
+
+###############################################################################################################################
 
 def sharpe_ratio(investment_return):
     beginning = investment_return.index[0]
@@ -39,30 +97,8 @@ def strategy_return(price, number_position):
 
     return number_position * daily_return
 
-def enter_exit_position(forecast):
-    new_forecast = forecast.copy()
-    in_the_market = False
-    for i in range(forecast.size):
-        forecast_value = forecast.iloc[i].item()
-        if(forecast_value >= 0):
-            sign = 1
-        else:
-            sign = -1
-        if(not in_the_market):
-            if(abs(forecast_value) > 10):
-                new_forecast.iloc[i] = 1 * sign
-                in_the_market = True
-            else:
-                new_forecast.iloc[i] = 0
-        else:
-            if(abs(forecast_value) < 9):
-                new_forecast.iloc[i] = 0
-                in_the_market = False
-            else:
-                new_forecast.iloc[i] = new_forecast.iloc[i-1]        
-    return new_forecast
 
-def risk_target_position(price, forecast, capital = 1, annual_volatility_target = 0.2):
+def risk_target_position(price, forecast, annual_volatility_target = 0.2):
     index = common_index([forecast, price])
     forecast = forecast.loc[index]
     price = price.loc[index]
@@ -76,80 +112,9 @@ def risk_target_position(price, forecast, capital = 1, annual_volatility_target 
 
     return percent_allocated[2:] 
 
-def position_inertia(asset_position, minimum_change=0.1):
-    column_name = asset_position.columns.item()
-    asset_position[asset_position[column_name] == 0] = sys.float_info.min
-    new_asset_position = asset_position.copy()
-    for i in range(len(asset_position.index) - 1):
-        abs_percent_change = abs(asset_position.iloc[i+1].item() / new_asset_position.iloc[i].item() - 1)
-        if(abs_percent_change <= minimum_change):
-            new_asset_position.iloc[i+1] = new_asset_position.iloc[i]
-        else:
-            new_asset_position.iloc[i+1] = asset_position.iloc[i+1]
-    return new_asset_position
 
-def turnover(position):
-    trade_count = 0
-    previous_value = position.iloc[0].item()
-    for i in range(position.size - 1):
-        current_value = position.iloc[i + 1].item()
-        if(current_value != previous_value):
-            trade_count = trade_count + 1
-            previous_value = current_value
-    turnover_count = trade_count / 2
-    total_year = position.size / 252
-    return turnover_count / total_year 
+###############################################################################################################################
 
-def cap_position(forecast, value_cap=10):
-    new_forecast = forecast.copy()
-    column_name = forecast.columns.item()
-    new_forecast[forecast[column_name] > value_cap] = 10
-    new_forecast[forecast[column_name] < -value_cap] = -10
-    new_forecast = new_forecast / 10
-    return new_forecast
-
-def irx_risk_free_rate(start_date, end_date):
-    annual_rate = datetime_csv("other_data/^IRX.csv", start=start_date, end=end_date) / 100
-     
-    # de-annualize
-    daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
-
-    daily_rate.columns = ["daily_rf"] 
-    return daily_rate 
-
-def price_filter(stock_list, minimum_data=4444):
-    price_list = []
-    for stock in stock_list:
-        price = Stock(stock).price
-        if(price.index.size >= minimum_data):
-            price_list.append(price[-minimum_data:])
-    return price_list
-
-def stock_filter(stock_list, minimum_data=4444):
-    new_stock_list = []
-    for stock in stock_list:
-        price = Stock(stock).price
-        if(price.index.size >= minimum_data):
-            new_stock_list.append(stock)
-    return new_stock_list
-
-def trade_cost_sr(price, cost = 0.5):
-    volatility = volatility_list(price)[-252:].mean()
-    cost_sr = 2 * cost / (2000 * volatility * 16)
-    return cost_sr
-    
-def win_percent(price, forecast):
-    daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
-
-    column_name = price.columns.item()
-    index = common_index([daily_return, forecast])
-    outcome = forecast.loc[index] * daily_return.loc[index]
-
-    total = outcome.size
-    win_rate = outcome[outcome[column_name] > 0].size / total
-
-    return win_rate
 
 def bootstrap_reality_check(sample):
     zero_centered_sample = sample - np.mean(sample)
@@ -207,80 +172,159 @@ def rule_return(position, daily_return):
     daily_return = daily_return.loc[index]
     return (position * daily_return)[column_name]
 
-def stats_summary(rule_list, keyvalue_list):
-    for rule in rule_list:
-        file_list = [ i[:-4] for i in os.listdir("rule_performance/") if i[-(len(rule) + 4):-4] == rule]
+###############################################################################################################################
 
-        rule_stats = {}
-        for file in file_list:
-            f_pickle = open("rule_performance/" + file + ".pkl", "rb")
-            value = pickle.load(f_pickle)
+def enter_exit_position(forecast):
+    new_forecast = forecast.copy()
+    in_the_market = False
+    for i in range(forecast.size):
+        forecast_value = forecast.iloc[i].item()
+        if(forecast_value >= 0):
+            sign = 1
+        else:
+            sign = -1
+        if(not in_the_market):
+            if(abs(forecast_value) > 10):
+                new_forecast.iloc[i] = 1 * sign
+                in_the_market = True
+            else:
+                new_forecast.iloc[i] = 0
+        else:
+            if(abs(forecast_value) < 9):
+                new_forecast.iloc[i] = 0
+                in_the_market = False
+            else:
+                new_forecast.iloc[i] = new_forecast.iloc[i-1]        
+    return new_forecast
 
-            stats = file[:-(len(rule)+1)]
-            median_value = round(np.median(value),5)
 
-            rule_stats.update({stats:median_value})
-            
-        rule_stats = dict(sorted(rule_stats.items(), key=lambda item: item[1]))
-        print(rule)
-        for keyvalue in keyvalue_list:
-            print(keyvalue, ":", rule_stats[keyvalue])
-        print()
+def position_inertia(asset_position, minimum_change=0.1):
+    column_name = asset_position.columns.item()
+    asset_position[asset_position[column_name] == 0] = sys.float_info.min
+    new_asset_position = asset_position.copy()
+    for i in range(len(asset_position.index) - 1):
+        abs_percent_change = abs(asset_position.iloc[i+1].item() / new_asset_position.iloc[i].item() - 1)
+        if(abs_percent_change <= minimum_change):
+            new_asset_position.iloc[i+1] = new_asset_position.iloc[i]
+        else:
+            new_asset_position.iloc[i+1] = asset_position.iloc[i+1]
+    return new_asset_position
 
-def dummy(*args, **kargs):
-    return 0
+def turnover(position):
+    trade_count = 0
+    previous_value = position.iloc[0].item()
+    for i in range(position.size - 1):
+        current_value = position.iloc[i + 1].item()
+        if(current_value != previous_value):
+            trade_count = trade_count + 1
+            previous_value = current_value
+    turnover_count = trade_count / 2
+    total_year = position.size / 252
+    return turnover_count / total_year 
 
-def jumbo_price_list():
-    f_pickle = open("other_data/jumbo_price.pkl", "rb")
-    price_list = pickle.load(f_pickle)
+def irx_risk_free_rate(start_date, end_date):
+    annual_rate = datetime_csv("other_data/^IRX.csv", start=start_date, end=end_date) / 100
+     
+    # de-annualize
+    daily_rate = ( 1 + annual_rate ) ** (1/252) - 1
+
+    daily_rate.columns = ["daily_rf"] 
+    return daily_rate 
+
+def price_filter(stock_list, minimum_data=4444):
+    price_list = []
+    for stock in stock_list:
+        price = Stock(stock).price
+        if(price.index.size >= minimum_data):
+            price_list.append(price[-minimum_data:])
     return price_list
 
-def jumbo_stock_list():
-    f_pickle = open("other_data/jumbo_stock.pkl", "rb")
-    stock_list = pickle.load(f_pickle)
-    return stock_list
+def stock_filter(stock_list, minimum_data=4444):
+    new_stock_list = []
+    for stock in stock_list:
+        price = Stock(stock).price
+        if(price.index.size >= minimum_data):
+            new_stock_list.append(stock)
+    return new_stock_list
 
-def rule_test(price, forecast, statistics):
-    match statistics:
-        case "forecast_average":
-            return 10 / abs(forecast).mean()
+def trade_cost_sr(price, capital, transaction_cost):
+    volatility = volatility_list(price)[-252:].mean().item()
+    cost_sr = 2 * transaction_cost / (capital * volatility * 16)
+    return cost_sr
 
-    #forecast = enter_exit_position(forecast) * 10
-    position = risk_target_position(price,forecast)
-    #position = position_inertia(position, minimum_change=0.1)
+# def trade_cost_sr(price, transaction_cost):
+#     current_price = price.iloc[-1].item()
+#     if(current_price < transaction_cost * 1000):
+#         block_value = transaction_cost * 1000
+#     else:
+#         block_value = current_price
+#     volatility = volatility_list(price)[-252:].mean()
+#     cost_sr = 2 * transaction_cost / (block_value * volatility * 16)
+#     return cost_sr
+    
+def win_percent(price, forecast):
+    daily_return = price/price.shift() - 1
+    daily_return = daily_return[1:]
 
-    match statistics:
-        case "sharpe_ratio":
-            investment_return = strategy_return(price, position)
-            return sharpe_ratio(investment_return)
-        case "post_cost_sharpe_ratio":
-            position = position_inertia(position)
-            investment_return = strategy_return(price,position)
-            sr = sharpe_ratio(investment_return)
-            turnover_count = turnover(position)
-            cost_sr = trade_cost_sr(price)
-            return sr - cost_sr * turnover_count
-        case "turnover":
-            position = position_inertia(position, minimum_change=0.1)
-            return turnover(position)
-        case "cost_sr":
-            position = position_inertia(position)
-            investment_return = strategy_return(price,position)
-            sr = sharpe_ratio(investment_return)
-            return trade_cost_sr(price)
-        case "bootstrap":
-            return p_value_bootstrap(price, position)
-        case "monte_carlo":
-            return p_value_montecarlo(price, position)
-        case "win_percentage":
-            return win_percent(price, position)
-        case "forecast_average":
-            return 10 / abs(forecast).mean()
-        case "test":
-            investment_return = strategy_return(price, position)
-            return sharpe_ratio(investment_return)
+    column_name = price.columns.item()
+    index = common_index([daily_return, forecast])
+    outcome = forecast.loc[index] * daily_return.loc[index]
+
+    total = outcome.size
+    win_rate = outcome[outcome[column_name] > 0].size / total
+
+    return win_rate
+
+######################################################################################################
+
+def update_rule_performance(rule_name, stats, results):
+    if(not rule_name + ".json" in os.listdir("rule_performance/")):
+        with open('rule_performance/' + rule_name + '.json', 'w') as f:
+            json.dump({}, f)
+
+    with open('rule_performance/' + rule_name + '.json') as f:
+        rule_performance = json.load(f)
+
+    with open('rule_performance/' + rule_name + '.json', 'w') as f:
+        rule_performance[stats] = results
+        json.dump(rule_performance, f)
+
+def stats_summary(rule_list, stats_list):
+    for rule in rule_list:
+        performance_dict = {}
+        with open('rule_performance/' + rule + '.json') as f:
+            rule_performance = json.load(f)
+        for stats in stats_list:
+            value = rule_performance[stats]
+            median_value = round(np.median(value),5)
+            performance_dict[stats] = median_value
+        print(rule)
+        for i in performance_dict.keys():
+            print(i, " : ", performance_dict[i])   
+        print()
+
+######################################################################################################
+
+def generate_jumbo():
+    with open('other_data/industry_basket.json') as f:
+        industry_company_list = json.load(f).keys()
+    mylist = []
+    for i in industry_company_list:
+        tally = 0
+        for j in industry_basket(i):
+            price = Stock(j, start_date="2010", end_date="2025").price
+            if(price.size > 4000):
+                tally = tally + 1
+                mylist.append(j)
+                if(tally == 2):
+                    break
+    with open('other_data/jumbo_ticker.json','w') as f:
+        json.dump(mylist,f)
 
 
+def jumbo_ticker_list():
+    with open('other_data/jumbo_ticker.json') as f:
+        return json.load(f)
 
 
 
