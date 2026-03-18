@@ -29,15 +29,13 @@ def rule_test(ticker, forecast, statistics, start, end):
 
     match statistics:
         case "sharpe_ratio":
-            open_price = Stock(ticker).open
-            investment_return = strategy_return(open_price, position.shift())
+            investment_return = strategy_return(price, position)
             return sharpe_ratio(investment_return)
         
         case "post_cost_sharpe_ratio":
             position = position_inertia(position)
 
-            open_price = Stock(ticker).open
-            investment_return = strategy_return(open_price, position.shift())
+            investment_return = strategy_return(price, position)
             
             sr = sharpe_ratio(investment_return)
             turnover_count = turnover(position)
@@ -59,9 +57,7 @@ def rule_test(ticker, forecast, statistics, start, end):
             return win_percent(price, position)
         
         case "test":
-            open_price = Stock(ticker).open
-            investment_return = strategy_return(open_price, position.shift())
-            return sharpe_ratio(investment_return)
+            return p_value_bootstrap(price, position)
 
 
 ###############################################################################################################################
@@ -88,7 +84,7 @@ def sharpe_ratio(investment_return):
 
 def strategy_return(price, number_position):
     daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
+    daily_return = daily_return.shift(-1)[:-1]
 
     index = common_index([number_position, daily_return])
 
@@ -162,7 +158,7 @@ def percentile_rank(distribution, value):
 def detrend_return(price):
     daily_return = price/price.shift() - 1
     detrended_daily_return = daily_return - daily_return.mean() 
-    detrended_daily_return = detrended_daily_return[1:]
+    detrended_daily_return = detrended_daily_return.shift(-1)[:-1]
     return detrended_daily_return
 
 def rule_return(position, daily_return):
@@ -264,7 +260,7 @@ def trade_cost_sr(price, capital, transaction_cost):
     
 def win_percent(price, forecast):
     daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
+    daily_return = daily_return.shift(-1)[:-1]
 
     column_name = price.columns.item()
     index = common_index([daily_return, forecast])

@@ -147,7 +147,7 @@ def sharpe_ratio_price(investment_return, capital):
 
 def strategy_return_price(price, number_position, trade_day, trade_cost):
     daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
+    daily_return = daily_return.shift(-1)[:-1]
 
     index = common_index([number_position, daily_return,price])
 
@@ -190,7 +190,7 @@ def trade_occurrence(asset_position):
 
 def strategy_return(price, number_position, include_cost=False, trade_occurence=0, capital=0, transaction_cost=0):
     daily_return = price/price.shift() - 1
-    daily_return = daily_return[1:]
+    daily_return = daily_return.shift(-1)[:-1]
 
     index = common_index([number_position, daily_return])
 
