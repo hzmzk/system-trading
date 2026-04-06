@@ -8,7 +8,7 @@ from functools import partial
 from multiprocessing import Pool
 
 from csv_dataset import sector_industries_list
-from rule_ewmac import multi_ewmac, multi_ewmac_list
+from ewmac import multi_ewmac, multi_ewmac_list
 from util import datetime_csv, price_normalization
 from backtest import *
 from trade_class import Stock

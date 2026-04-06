@@ -170,6 +170,7 @@ def rule_return(position, daily_return):
 
 ###############################################################################################################################
 
+
 def enter_exit_position(forecast):
     new_forecast = forecast.copy()
     in_the_market = False
